@@ -4,12 +4,17 @@ import { QueryUserDto, RegisterUserDto, UpdateProfileDto, UpdateUserDto } from '
 import { GetUserId, Public, Roles } from 'src/auth/decorators';
 import { RolesGuard } from 'src/auth/guards';
 import { Prisma, Role, User } from '@prisma/client';
+import { ApiBadRequestResponse, ApiConflictResponse, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 
+@ApiTags('Users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   // ALL USER
+  @ApiOperation({ summary: 'Register new user' })
+  @ApiOkResponse({ description: 'Successfully register user!' })
+  @ApiConflictResponse({ description: 'Email already exists' })
   @Public()
   @Post('register')
   async register(@Body() registerUserDto: RegisterUserDto): Promise<Omit<User, 'password'>> {
@@ -17,11 +22,21 @@ export class UsersController {
     return this.usersService.register(registerUserDto)
   }
 
+  @ApiOperation({ summary: 'Get user profile' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized!' })
+  @ApiOkResponse({ description: 'Ok' })
   @Get('profile')
   async getProfile(@GetUserId() id: string): Promise<Omit<User, 'password'>> {
     return this.usersService.findByUserId(id)
   }
 
+  @ApiOperation({ summary: 'Update user profile' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized!' })
+  @ApiOkResponse({ description: 'Ok' })
+  @ApiBadRequestResponse({ 
+    description: 'BadRequest',
+    type: UpdateProfileDto 
+  })
   @Patch('profile')
   async updateProfile(
     @GetUserId() id: string, 
@@ -30,6 +45,9 @@ export class UsersController {
     return this.usersService.updateProfile(id, updateProfileDto)
   }
 
+  @ApiOperation({ summary: 'Query users by body' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized!' })
+  @ApiOkResponse({ description: 'Ok' })
   @Post('query')
   async query (@Body() queryUserDto: QueryUserDto): Promise<Omit<User, 'password'>[]> {
     const { full_name, email, phone, role, premium_account, nationality, is_active, language } = queryUserDto
@@ -60,6 +78,13 @@ export class UsersController {
   }
 
   // ADMIN
+  @ApiOperation({ summary: 'Update user by id' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized!' })
+  @ApiForbiddenResponse({ description: 'Forbidden: Requires ADMIN rights' })
+  @ApiBadRequestResponse({ 
+    description: 'BadRequest',
+    type: UpdateUserDto, 
+  })
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
   @Patch(':id')
@@ -70,6 +95,9 @@ export class UsersController {
     return this.usersService.update(id, updateUserDto)
   }
 
+  @ApiOperation({ summary: 'Delete user by id' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized!' })
+  @ApiForbiddenResponse({ description: 'Forbidden: Requires ADMIN rights' })
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
   @Delete(':id')
@@ -78,6 +106,10 @@ export class UsersController {
   }
 
   // ADMIN || TRAINER 
+  @ApiOperation({ summary: 'Query user by param' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized!' })
+  @ApiForbiddenResponse({ description: 'Forbidden: Requires ADMIN or TRAINER rights' })
+  @ApiOkResponse({ description: 'Ok' })
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN, Role.TRAINER)
   @Get()
@@ -90,6 +122,10 @@ export class UsersController {
     return this.usersService.query(params)
   }
 
+  @ApiOperation({ summary: 'Find user by id' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized!' })
+  @ApiForbiddenResponse({ description: 'Forbidden: Requires ADMIN or TRAINER rights' })
+  @ApiOkResponse({ description: 'Ok' })
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN, Role.TRAINER)
   @Get(':id')
@@ -97,6 +133,10 @@ export class UsersController {
     return this.usersService.findByUserId(id);
   }
 
+  @ApiOperation({ summary: 'Find user by email'})
+  @ApiUnauthorizedResponse({ description: 'Unauthorized!' })
+  @ApiForbiddenResponse({ description: 'Forbidden: Requires ADMIN or TRAINER rights' })
+  @ApiOkResponse({ description: 'Ok' })
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN, Role.TRAINER)
   @Get('user/:email')
